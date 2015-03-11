@@ -22,14 +22,13 @@ public:
 	{
 	};
 
-	struct SetThreadID
+	struct ExecFunc
 	{
-		SetThreadID( void ){}
-		SetThreadID( const boost::thread::id& _id ) : id( _id ){}
-		boost::thread::id id;
+		ExecFunc( std::function<void(void)> _func ) : func( _func ){}
+		std::function<void( void )> func;
 	};
 
-	typedef boost::variant<GetThreadID, SetThreadID> Message;
+	typedef boost::variant<GetThreadID, ExecFunc> Message;
 
 	class MessageVisitor : public boost::static_visitor < void >
 	{
@@ -37,12 +36,10 @@ public:
 		MessageVisitor( TestActor* const obj ) : base( obj ){}
 
 		void operator()( const GetThreadID& msg ) const {
-			std::cout << __FUNCTION__ << "GetThreadID" << std::endl;
 			base->changeThreadID( boost::this_thread::get_id() );
 		}
-		void operator()( const SetThreadID& msg ) const {
-			std::cout << __FUNCTION__ << "SetThreadID" << std::endl;
-			base->threadID = msg.id;
+		void operator()( const ExecFunc& msg ) const {
+			msg.func();
 		}
 
 	private:
@@ -76,8 +73,6 @@ public:
 		return true;
 	}
 
-	boost::optional<boost::thread::id> threadID;
-
 private:
 	boost::signals2::signal<void( boost::thread::id )> changeThreadID;
 	boost::lockfree::queue<Message*> messageQueue;
@@ -91,8 +86,11 @@ TEST_F( ActorTest, noSpawnTest )
 {
 	auto p = std::make_shared<TestActor>();
 
-	p->connectChangeThreadID( [p]( const boost::thread::id& i ){
-		auto msg = new TestActor::Message( TestActor::SetThreadID( i ) );
+	boost::thread::id threadID;
+	p->connectChangeThreadID( [p,&threadID]( const boost::thread::id& i ){
+		auto msg = new TestActor::Message( TestActor::ExecFunc( [i,&threadID]( void ){
+			threadID = i;
+		} ) );
 		p->entry( msg );
 	} );
 
@@ -106,6 +104,5 @@ TEST_F( ActorTest, noSpawnTest )
 	ret = p->receive(); // SetThreadID‚ÌŽÀŽ{
 	ASSERT_TRUE( ret );
 
-	ASSERT_TRUE( p->threadID );
-	ASSERT_THAT( *(p->threadID), Eq( boost::this_thread::get_id() ) );
+	ASSERT_THAT( threadID, Eq( boost::this_thread::get_id() ) );
 }
