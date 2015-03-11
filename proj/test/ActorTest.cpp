@@ -4,11 +4,8 @@
 #include <memory>
 #include <functional>
 #include <boost/signals2/signal.hpp>
-#include <boost/lockfree/queue.hpp>
 
-#include <ActorBase.hpp>
-#include <Actor.h>
-
+#include <Actor.hpp>
 
 #include <iostream>
 
@@ -50,7 +47,7 @@ namespace TestActorMessage
 	class MessageVisitor : public boost::static_visitor < void >
 	{
 	public:
-		MessageVisitor( ::TestActor* const obj ) : base( obj ){}
+		MessageVisitor( TestActor* const obj ) : base( obj ){}
 
 		void operator()( const GetThreadID& msg ) const {
 			base->changeThreadID( boost::this_thread::get_id() );
@@ -60,7 +57,7 @@ namespace TestActorMessage
 		}
 
 	private:
-		::TestActor* const base;
+		TestActor* const base;
 	};
 };
 
@@ -108,20 +105,17 @@ namespace AnotherActorMessage
 	class MessageVisitor;
 };
 
-class AnotherActor : public ActorBase<AnotherActor, AnotherActorMessage::Message, AnotherActorMessage::MessageVisitor>
+class AnotherActor : public Actor<AnotherActor, AnotherActorMessage::Message, AnotherActorMessage::MessageVisitor>
 {
 public:
 	boost::signals2::signal<void( boost::thread::id )> changeThreadID;
 
 	AnotherActor( void )
-		: ActorBase()
-		, th( &::AnotherActor::exec, this )
+		: Actor()
 	{}
 
 	~AnotherActor( void )
 	{
-		th.interrupt();
-		th.join();
 	}
 
 	void connectChangeThreadID( std::function<void( boost::thread::id )> func ) 
@@ -134,16 +128,6 @@ public:
 		return th.get_id();
 	}
 
-private:
-	boost::thread th;
-
-	void exec( void )
-	{
-		while ( true ) {
-			receive();
-			boost::this_thread::sleep( boost::posix_time::milliseconds( 1 ) );
-		}
-	}
 };
 
 namespace AnotherActorMessage

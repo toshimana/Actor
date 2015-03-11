@@ -4,12 +4,15 @@
 #include <boost/variant.hpp>
 #include <boost/lockfree/queue.hpp>
 
-template <typename SubType, typename Message, typename MessageVisitor>
+template <typename BaseType, typename Message, typename MessageVisitor>
 class ActorBase
 {
 public:
 	ActorBase( void )
 		: messageQueue( 128 )
+	{}
+
+	virtual ~ActorBase( void )
 	{}
 
 	void entry( Message* msg )
@@ -27,7 +30,7 @@ public:
 		// Žg—pŒã‚É‰ð•ú‚Å‚«‚é‚æ‚¤‚É‚·‚é
 		std::shared_ptr<Message> msg( pMsg );
 
-		MessageVisitor mv( static_cast<SubType*>( this ) );
+		MessageVisitor mv( static_cast<BaseType*>( this ) );
 		boost::apply_visitor( mv, *msg );
 		   
 		return true;
