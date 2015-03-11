@@ -61,7 +61,7 @@ public:
 
 	bool receive( void )
 	{
-		Message* pMsg;
+		Message* pMsg = nullptr;
 		if ( !messageQueue.pop( pMsg ) ) return false;
 
 		// 使用後に解放できるようにする
@@ -105,4 +105,102 @@ TEST_F( ActorTest, noSpawnTest )
 	ASSERT_TRUE( ret );
 
 	ASSERT_THAT( threadID, Eq( boost::this_thread::get_id() ) );
+}
+
+class AnotherActor : public Actor
+{
+public:
+	struct GetThreadID
+	{
+	};
+
+	typedef boost::variant<GetThreadID> Message;
+
+	class MessageVisitor : public boost::static_visitor < void >
+	{
+	public:
+		MessageVisitor( AnotherActor* const obj ) : base( obj ){}
+
+		void operator()( const GetThreadID& msg ) const {
+			std::cout << __FUNCTION__ << "GetThreadID" << std::endl;
+			base->changeThreadID( boost::this_thread::get_id() );
+		}
+
+	private:
+		AnotherActor* const base;
+	};
+
+	AnotherActor( void )
+		: messageQueue( 128 )
+		, th( &::AnotherActor::exec, this )
+	{}
+
+	~AnotherActor( void )
+	{
+		th.interrupt();
+		th.join();
+	}
+
+	void connectChangeThreadID( std::function<void( boost::thread::id )> func ) 
+	{
+		changeThreadID.connect( func );
+	}
+
+	boost::thread::id getThreadID( void ) const
+	{
+		return th.get_id();
+	}
+
+	void entry( Message* msg )
+	{
+		while ( !messageQueue.push( msg ) ){
+			boost::this_thread::sleep( boost::posix_time::milliseconds( 1 ) );
+		}
+	}
+
+private:
+	boost::lockfree::queue<Message*> messageQueue;
+	boost::thread th;
+	boost::signals2::signal<void( boost::thread::id )> changeThreadID;
+
+	bool receive( void )
+	{
+		Message* pMsg = nullptr;
+		if ( !messageQueue.pop( pMsg ) )return false;
+
+		// 使用後に解放できるようにする
+		std::shared_ptr<Message> msg( pMsg );
+
+		MessageVisitor mv( this );
+		boost::apply_visitor( mv, *msg );
+		   
+		return true;
+	}
+
+	void exec( void )
+	{
+		while ( true ) {
+			receive();
+			boost::this_thread::sleep( boost::posix_time::milliseconds( 1 ) );
+		}
+	}
+};
+
+TEST_F( ActorTest, spawnTest )
+{
+	auto aActor = std::make_shared<AnotherActor>();
+
+	ASSERT_THAT( aActor->getThreadID(), Ne( boost::this_thread::get_id() ) );
+	auto tActor = std::make_shared<TestActor>();
+
+	boost::thread::id threadID;
+	aActor->connectChangeThreadID( [tActor,&threadID]( const boost::thread::id& i ) {
+		tActor->entry( new TestActor::Message( TestActor::ExecFunc( [i, &threadID]( void ) {
+			threadID = i;
+		} ) ) );
+	} );
+	aActor->entry( new AnotherActor::Message( AnotherActor::GetThreadID() ) );
+
+	while ( !tActor->receive() ){}
+	ASSERT_THAT( threadID, aActor->getThreadID() );
 }
