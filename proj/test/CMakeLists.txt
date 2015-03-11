@@ -2,11 +2,20 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 PROJECT( ActorTest )
 
+# Boost
+FIND_PACKAGE( Boost REQUIRED COMPONENTS )
+IF ( Boost_FOUND )
+  INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
+  LINK_DIRECTORIES( ${Boost_LIBRARY_DIRS} )
+ENDIF()
+
+
 # GMock
 FIND_PATH( GMOCK_ROOT gmock/gmock.hpp
 				/usr/local/include )
 SET( GMOCK_SRCS ${GMOCK_ROOT}/gmock-gtest-all.cc ${GMOCK_ROOT}/gmock_main.cc )
 INCLUDE_DIRECTORIES( ${GMOCK_ROOT} )
+
 
 # Test
 INCLUDE_DIRECTORIES( "../src" )
