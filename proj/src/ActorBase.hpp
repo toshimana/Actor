@@ -4,7 +4,7 @@
 #include <boost/variant.hpp>
 #include <boost/lockfree/queue.hpp>
 
-template <typename BaseType, typename Message, typename MessageVisitor>
+template <typename Message>
 class ActorBase
 {
 public:
@@ -29,13 +29,13 @@ public:
 
 		// Žg—pŒã‚É‰ð•ú‚Å‚«‚é‚æ‚¤‚É‚·‚é
 		std::shared_ptr<Message> msg( pMsg );
-
-		MessageVisitor mv( static_cast<BaseType*>( this ) );
-		boost::apply_visitor( mv, *msg );
-		   
+		processMessage( msg );
+				   
 		return true;
 	}
 
 private:
 	boost::lockfree::queue<Message*> messageQueue;
+
+	virtual void processMessage( std::shared_ptr<Message> msg ) = 0;
 };

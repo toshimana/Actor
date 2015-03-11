@@ -25,11 +25,9 @@ namespace TestActorMessage
 	};
 
 	typedef boost::variant<GetThreadID, ExecFunc> Message;
-
-	class MessageVisitor;
 };
 
-class TestActor : public ActorBase<TestActor, TestActorMessage::Message, TestActorMessage::MessageVisitor>
+class TestActor : public ActorBase<TestActorMessage::Message>
 {
 public:
 	boost::signals2::signal<void( boost::thread::id )> changeThreadID;
@@ -40,19 +38,23 @@ public:
 	{
 		changeThreadID.connect( func );
 	}
-};
 
-namespace TestActorMessage
-{
+private:
+	void processMessage( std::shared_ptr<TestActorMessage::Message> msg )
+	{
+		MessageVisitor mv( this );
+		boost::apply_visitor( mv, *msg );
+	}
+
 	class MessageVisitor : public boost::static_visitor < void >
 	{
 	public:
 		MessageVisitor( TestActor* const obj ) : base( obj ){}
 
-		void operator()( const GetThreadID& msg ) const {
+		void operator()( const TestActorMessage::GetThreadID& msg ) const {
 			base->changeThreadID( boost::this_thread::get_id() );
 		}
-		void operator()( const ExecFunc& msg ) const {
+		void operator()( const TestActorMessage::ExecFunc& msg ) const {
 			msg.func();
 		}
 
@@ -105,7 +107,7 @@ namespace AnotherActorMessage
 	class MessageVisitor;
 };
 
-class AnotherActor : public Actor<AnotherActor, AnotherActorMessage::Message, AnotherActorMessage::MessageVisitor>
+class AnotherActor : public Actor<AnotherActorMessage::Message>
 {
 public:
 	boost::signals2::signal<void( boost::thread::id )> changeThreadID;
@@ -127,17 +129,19 @@ public:
 	{
 		return th.get_id();
 	}
+private:
+	void processMessage( std::shared_ptr<AnotherActorMessage::Message> msg )
+	{
+		MessageVisitor mv( this );
+		boost::apply_visitor( mv, *msg );
+	}
 
-};
-
-namespace AnotherActorMessage
-{
 	class MessageVisitor : public boost::static_visitor < void >
 	{
 	public:
 		MessageVisitor( ::AnotherActor* const obj ) : base( obj ){}
 
-		void operator()( const GetThreadID& msg ) const {
+		void operator()( const AnotherActorMessage::GetThreadID& msg ) const {
 			base->changeThreadID( boost::this_thread::get_id() );
 		}
 
