@@ -15,9 +15,11 @@ public:
 	virtual ~ActorBase( void )
 	{}
 
-	void entry( Message* msg )
+	template <typename T>
+	void entry( const T& msg )
 	{
-		while ( !messageQueue.push( msg ) ){
+		Message* pMsg = new Message( msg );
+		while ( !messageQueue.push( pMsg ) ){
 			boost::this_thread::sleep( boost::posix_time::milliseconds( 1 ) );
 		}
 	}

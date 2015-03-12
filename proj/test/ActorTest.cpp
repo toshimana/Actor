@@ -74,14 +74,12 @@ TEST_F( ActorTest, noSpawnTest )
 
 	boost::thread::id threadID;
 	p->connectChangeThreadID( [p,&threadID]( const boost::thread::id& i ){
-		auto msg = new TestActorMessage::Message( TestActorMessage::ExecFunc( [i,&threadID]( void ){
+		p->entry( TestActorMessage::ExecFunc( [i,&threadID]( void ){
 			threadID = i;
 		} ) );
-		p->entry( msg );
 	} );
 
-	auto msg = new TestActorMessage::Message( TestActorMessage::GetThreadID() );
-	p->entry( msg );
+	p->entry( TestActorMessage::GetThreadID() );
 
 	bool ret;
 	ret = p->receive(); // GetThreaID‚ÌŽÀŽ{
@@ -160,11 +158,11 @@ TEST_F( ActorTest, spawnTest )
 
 	boost::thread::id threadID;
 	aActor->connectChangeThreadID( [tActor,&threadID]( const boost::thread::id& i ) {
-		tActor->entry( new TestActorMessage::Message( TestActorMessage::ExecFunc( [i, &threadID]( void ) {
+		tActor->entry( TestActorMessage::ExecFunc( [i, &threadID]( void ) {
 			threadID = i;
-		} ) ) );
+		} ) );
 	} );
-	aActor->entry( new AnotherActorMessage::Message( AnotherActorMessage::GetThreadID() ) );
+	aActor->entry( AnotherActorMessage::GetThreadID() );
 
 	while ( !tActor->receive() ){}
 	ASSERT_THAT( threadID, aActor->getThreadID() );
