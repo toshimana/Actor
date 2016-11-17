@@ -2,18 +2,22 @@
 
 #include "ActorBase.hpp"
 
-template <typename Message>
-class Actor : public ActorBase <Message>
+#include <thread>
+#include <chrono>
+
+template <typename Message_>
+class Actor : public ActorBase <Message_>
 {
 public:
 	Actor( void )
 		: ActorBase()
-		, th( &Actor<Message>::exec, this )
+		, th( &Actor<Message_>::exec, this )
 	{
 	}
 
 	virtual ~Actor( void )
 	{
+		halt();
 		th.join();
 	}
 
@@ -23,7 +27,7 @@ protected:
 private:
 	void exec( void )
 	{
-		while ( true ) {
+		while ( !halt_flag ) {
 			receive();
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}

@@ -1,19 +1,19 @@
 #pragma once
 
-#include <thread>
 #include <mutex>
-#include <chrono>
 #include <queue>
+#include <atomic>
 
 
-template <typename Message>
+template <typename Message_>
 class ActorBase
 {
-	using Lock = std::lock_guard<std::mutex>;
-
 public:
-	ActorBase( void )
-		: messageQueue()
+	using Message = Message_;
+
+	ActorBase(void)
+		: halt_flag(false)
+		, message_queue()
 	{}
 
 	virtual ~ActorBase( void )
@@ -22,27 +22,39 @@ public:
 	template <typename T>
 	void entry( const T& msg )
 	{
-		Lock lock(mtx);
-		messageQueue.push(msg);
+		if (halt_flag) return;
+
+		std::lock_guard<std::mutex> lock(mtx);
+		message_queue.push(msg);
 	}
 
 	void receive( void )
 	{
+		if (halt_flag) return;
+
 		Message msg;
 		{
-			Lock lock(mtx);
-			if (messageQueue.empty()) return;
+			std::lock_guard<std::mutex> lock(mtx);
+			if (message_queue.empty()) return;
 
-			msg = messageQueue.front();
-			messageQueue.pop();
+			msg = message_queue.front();
+			message_queue.pop();
 		}
 
-		processMessage( msg );
+		process_message( msg );
+	}
+
+protected:
+	std::atomic_bool halt_flag;
+
+	void halt(void)
+	{
+		halt_flag = true;
 	}
 
 private:
 	std::mutex mtx;
-	std::queue<Message> messageQueue;
+	std::queue<Message> message_queue;
 
-	virtual void processMessage( const Message& msg ) = 0;
+	virtual void process_message( const Message& msg ) = 0;
 };
