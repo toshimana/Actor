@@ -14,19 +14,18 @@ public:
 
 	virtual ~Actor( void )
 	{
-		th.interrupt();
 		th.join();
 	}
 
 protected:
-	boost::thread th;
+	std::thread th;
 
 private:
 	void exec( void )
 	{
 		while ( true ) {
 			receive();
-			boost::this_thread::sleep( boost::posix_time::milliseconds( 1 ) );
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
 	}
 };

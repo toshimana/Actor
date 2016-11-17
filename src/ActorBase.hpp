@@ -1,15 +1,19 @@
 #pragma once
 
-#include <boost/thread.hpp>
-#include <boost/variant.hpp>
-#include <boost/lockfree/queue.hpp>
+#include <thread>
+#include <mutex>
+#include <chrono>
+#include <queue>
+
 
 template <typename Message>
 class ActorBase
 {
+	using Lock = std::lock_guard<std::mutex>;
+
 public:
 	ActorBase( void )
-		: messageQueue( 128 )
+		: messageQueue()
 	{}
 
 	virtual ~ActorBase( void )
@@ -18,26 +22,27 @@ public:
 	template <typename T>
 	void entry( const T& msg )
 	{
-		Message* pMsg = new Message( msg );
-		while ( !messageQueue.push( pMsg ) ){
-			boost::this_thread::sleep( boost::posix_time::milliseconds( 1 ) );
-		}
+		Lock lock(mtx);
+		messageQueue.push(msg);
 	}
 
-	bool receive( void )
+	void receive( void )
 	{
-		Message* pMsg = nullptr;
-		if ( !messageQueue.pop( pMsg ) ) return false;
+		Message msg;
+		{
+			Lock lock(mtx);
+			if (messageQueue.empty()) return;
 
-		// Žg—pŒã‚É‰ð•ú‚Å‚«‚é‚æ‚¤‚É‚·‚é
-		std::shared_ptr<Message> msg( pMsg );
+			msg = messageQueue.front();
+			messageQueue.pop();
+		}
+
 		processMessage( msg );
-				   
-		return true;
 	}
 
 private:
-	boost::lockfree::queue<Message*> messageQueue;
+	std::mutex mtx;
+	std::queue<Message> messageQueue;
 
-	virtual void processMessage( std::shared_ptr<Message> msg ) = 0;
+	virtual void processMessage( const Message& msg ) = 0;
 };
