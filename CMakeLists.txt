@@ -13,7 +13,8 @@ INCLUDE_DIRECTORIES( src )
 # Example
 
 ADD_EXECUTABLE( example01 "example/example01.cpp" )
-TARGET_LINK_LIBRARIES( example01 ${Boost_LIBRARIES} )
+
+ADD_EXECUTABLE( example02 "example/example02.cpp" )
 
 
 IF( WITH_TEST )

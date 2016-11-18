@@ -22,19 +22,18 @@ public:
 	template <typename T>
 	void entry( const T& msg )
 	{
-		if (halt_flag) return;
-
 		std::lock_guard<std::mutex> lock(mtx);
+		if (halt_flag) return;
 		message_queue.push(msg);
 	}
 
 	void receive( void )
 	{
-		if (halt_flag) return;
-
 		Message msg;
 		{
 			std::lock_guard<std::mutex> lock(mtx);
+
+			if (halt_flag) return;
 			if (message_queue.empty()) return;
 
 			msg = message_queue.front();
@@ -49,6 +48,7 @@ protected:
 
 	void halt(void)
 	{
+		std::lock_guard<std::mutex> lock(mtx);
 		halt_flag = true;
 	}
 
