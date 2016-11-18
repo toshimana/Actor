@@ -29,5 +29,8 @@ int main()
 	
 	std::this_thread::sleep_for(std::chrono::seconds(1));
 
+	actor1->halt();
+	actor2->halt();
+
 	return 0;
 }
